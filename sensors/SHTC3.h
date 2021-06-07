@@ -31,6 +31,8 @@ using namespace std::chrono;
 #endif
 
 #define SHTC3_ADDRESS (0x70 << 1)
+#define MBED_CONF_SHTC3_TIMEOUT 20
+
 
 class SHTC3 {
   public:
