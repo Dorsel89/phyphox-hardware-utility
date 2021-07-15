@@ -100,7 +100,27 @@ uint8_t ICM42605::status()
 void ICM42605::init(uint8_t Ascale, uint8_t Gscale, uint8_t AODR, uint8_t GODR)
 {
     uint8_t temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_PWR_MGMT0); // make sure not to disturb reserved bit values
-    myi2c->writeByte(ICM42605_ADDRESS, ICM42605_PWR_MGMT0, temp | 0x0F);  // enable gyro and accel in low noise mode 0x0F// Low power: 
+    //myi2c->writeByte(ICM42605_ADDRESS, ICM42605_PWR_MGMT0, temp | 0x0F);  // enable gyro and accel in low noise mode 0x0F
+    myi2c->writeByte(ICM42605_ADDRESS, ICM42605_PWR_MGMT0, temp | 0x00);  // enable gyro and accel in low noise mode 0x0F
+
+    temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_DRIVE_CONFIG);      
+    temp ^= (-1 ^ temp) & (1UL << 0);
+    temp ^= (-0 ^ temp) & (1UL << 1);
+    temp ^= (-0 ^ temp) & (1UL << 2);
+    temp ^= (-1 ^ temp) & (1UL << 3);
+    temp ^= (-0 ^ temp) & (1UL << 4);
+    temp ^= (-0 ^ temp) & (1UL << 5);
+    myi2c->writeByte(ICM42605_ADDRESS, ICM42605_DRIVE_CONFIG, temp);// set i2c slew rate to 20-60ns
+
+    temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_INTF_CONFIG6);      
+    temp ^= (-1 ^ temp) & (1UL << 4);
+    temp ^= (-0 ^ temp) & (1UL << 0);
+    temp ^= (-0 ^ temp) & (1UL << 1);
+    myi2c->writeByte(ICM42605_ADDRESS, ICM42605_INTF_CONFIG6, temp);// 
+
+    temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_INTF_CONFIG4);      
+    temp ^= (-0 ^ temp) & (1UL << 6);
+    myi2c->writeByte(ICM42605_ADDRESS, ICM42605_INTF_CONFIG4, temp);// 
 
     temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_GYRO_CONFIG0);
     myi2c->writeByte(ICM42605_ADDRESS, ICM42605_GYRO_CONFIG0, temp | GODR | Gscale << 5); // gyro full scale and data rate
@@ -139,32 +159,51 @@ void ICM42605::init(uint8_t Ascale, uint8_t Gscale, uint8_t AODR, uint8_t GODR)
 
 void ICM42605::disableA(){
     uint8_t temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_PWR_MGMT0); // make sure not to disturb reserved bit values
-    temp &= ~(0 << 0);
-    temp &= ~(0 << 1);
+    //temp &= ~(0 << 0);
+    //temp &= ~(0 << 1);
+        
+    temp ^= (-0 ^ temp) & (1UL << 0);
+    temp ^= (-0 ^ temp) & (1UL << 1);
     myi2c->writeByte(ICM42605_ADDRESS, ICM42605_PWR_MGMT0, temp); 
     
 }
 void ICM42605::disableG(){
     uint8_t temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_PWR_MGMT0); // make sure not to disturb reserved bit values
-    temp &= ~(0 << 2);
-    temp &= ~(0 << 3);
+    //temp &= ~(0 << 2);
+    //temp &= ~(0 << 3);
+    temp ^= (-0 ^ temp) & (1UL << 2);
+    temp ^= (-0 ^ temp) & (1UL << 3);
     myi2c->writeByte(ICM42605_ADDRESS, ICM42605_PWR_MGMT0, temp); 
-
+    wait_us(200);
 }
 void ICM42605::enableA(){
     uint8_t temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_PWR_MGMT0); // make sure not to disturb reserved bit values
-    temp |= 1 << 0;
-    temp |= 1 << 1;
+    //temp |= 1 << 0;
+    //temp |= 1 << 1;
+    temp ^= (-1 ^ temp) & (1UL << 0);
+    temp ^= (-1 ^ temp) & (1UL << 1);
     myi2c->writeByte(ICM42605_ADDRESS, ICM42605_PWR_MGMT0, temp); 
+    wait_us(200);
     
 }
 void ICM42605::enableG(){
     uint8_t temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_PWR_MGMT0); // make sure not to disturb reserved bit values
-    temp |= 1 << 2;
-    temp |= 1 << 3;
+    //temp |= 1 << 2;
+    //temp |= 1 << 3;
+    temp ^= (-1 ^ temp) & (1UL << 2);
+    temp ^= (-1 ^ temp) & (1UL << 3);
     myi2c->writeByte(ICM42605_ADDRESS, ICM42605_PWR_MGMT0, temp); 
-    
 }
+uint8_t ICM42605::setState(bool acc, bool gyr){
+    uint8_t temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_PWR_MGMT0);
+    temp ^= (-acc ^ temp) & (1UL << 0);
+    temp ^= (-acc ^ temp) & (1UL << 1);
+    temp ^= (-gyr ^ temp) & (1UL << 2);
+    temp ^= (-gyr ^ temp) & (1UL << 3);
+    myi2c->writeByte(ICM42605_ADDRESS, ICM42605_PWR_MGMT0, temp);
+    return 0;    
+}
+
 /* 
 void ICM42605::offsetBias(float * dest1, float * dest2)
 {
@@ -228,33 +267,39 @@ void ICM42605::readData(int16_t * destination)
   destination[6] = ((int16_t)rawData[12] << 8) | rawData[13] ;
 }
 */
-void ICM42605::readData()
+uint8_t ICM42605::readData()
 {
-  uint8_t rawData[14];  // x/y/z accel register data stored here
-  myi2c->readBytes(ICM42605_ADDRESS, ICM42605_TEMP_DATA1, 14, &rawData[0]);  // Read the 14 raw data registers into data array
-  int16_t destination[7];
-  //temp
-  destination[0] = ((int16_t)rawData[0] << 8) | rawData[1] ;  // Turn the MSB and LSB into a signed 16-bit value
+    uint8_t rawData[14];  // x/y/z accel register data stored here
+    uint8_t error=0;
+    error = myi2c->readBytes(ICM42605_ADDRESS, ICM42605_TEMP_DATA1, 14, &rawData[0]);  // Read the 14 raw data registers into data array
+    if(error){
+        return error;
+    }
+    int16_t destination[7];
 
-  //accX
-  destination[1] = ((int16_t)rawData[2] << 8) | rawData[3] ;
-  //accY
-  destination[2] = ((int16_t)rawData[4] << 8) | rawData[5] ;
-  //accZ
-  destination[3] = ((int16_t)rawData[6] << 8) | rawData[7] ;
-  //Gyr X
-  destination[4] = ((int16_t)rawData[8] << 8) | rawData[9] ;
-  //Gyr y
-  destination[5] = ((int16_t)rawData[10] << 8) | rawData[11] ;
-  //Gyr z
-  destination[6] = ((int16_t)rawData[12] << 8) | rawData[13] ;
-  
-  t= destination[0];
-  gx = destination[4] *_gRes;
-  gy = destination[5] *_gRes;
-  gz = destination[6] *_gRes;
-  
-  ax = destination[1] *_aRes;
-  ay = destination[2] *_aRes;
-  az = destination[3] *_aRes;
+    destination[0] = ((int16_t)rawData[0] << 8) | rawData[1] ;  // Turn the MSB and LSB into a signed 16-bit value
+
+    //accX
+    destination[1] = ((int16_t)rawData[2] << 8) | rawData[3] ;
+    //accY
+    destination[2] = ((int16_t)rawData[4] << 8) | rawData[5] ;
+    //accZ
+    destination[3] = ((int16_t)rawData[6] << 8) | rawData[7] ;
+    //Gyr X
+    destination[4] = ((int16_t)rawData[8] << 8) | rawData[9] ;
+    //Gyr y
+    destination[5] = ((int16_t)rawData[10] << 8) | rawData[11] ;
+    //Gyr z
+    destination[6] = ((int16_t)rawData[12] << 8) | rawData[13] ;
+    t= destination[0];
+    ax = destination[1] *_aRes;
+    ay = destination[2] *_aRes;
+    az = destination[3] *_aRes;
+
+    gx = destination[4] *_gRes;
+    gy = destination[5] *_gRes;
+    gz = destination[6] *_gRes;
+
+
+    return error;
 }

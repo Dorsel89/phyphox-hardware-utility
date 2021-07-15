@@ -28,14 +28,17 @@ void I2Chelper::writeByte(uint8_t I2C_ADDR, uint8_t regAddr, uint8_t data)
     return;
 }
 
-void I2Chelper::readBytes(uint8_t I2Caddress, uint8_t subAddress, uint8_t count, uint8_t * dest)
+uint8_t I2Chelper::readBytes(uint8_t I2Caddress, uint8_t subAddress, uint8_t count, uint8_t * dest)
 {  
     uint8_t dataBuffer[count];
-
-    i2c->write(I2Caddress, (const char *)&subAddress, 1, true);
-    ThisThread::sleep_for(1ms);
-    i2c->read(I2Caddress | 0x01, (char *)dest, count, false);
-    ThisThread::sleep_for(1ms);
-    return;
+    uint8_t error;
+    error = i2c->write(I2Caddress, (const char *)&subAddress, 1, true);
+    //ThisThread::sleep_for(1ms);
+    if(error){
+        return error;
+    }
+    error = i2c->read(I2Caddress | 0x01, (char *)dest, count, false);
+    //ThisThread::sleep_for(1ms);
+    return error;
 }
 
