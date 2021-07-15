@@ -177,14 +177,16 @@ class ICM42605
         void reset();
         void selfTest();
         //void readData(int16_t * destination);
-        void readData();
+        uint8_t readData();
         uint8_t status();
         void disableA();
         void disableG();
         void enableA();
         void enableG();
+        uint8_t setState(bool , bool );
         float _aRes, _gRes;
         float ax,ay,az,gx,gy,gz,t = 0;
+        float axOld,ayOld,azOld,gxOld,gyOld,gzOld,tOld = 0;
 	private:
         I2Chelper* myi2c;
         
