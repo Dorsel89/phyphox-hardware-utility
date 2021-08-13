@@ -5,6 +5,8 @@
 
 class Onewire{
 
+//normal
+
 #define A 6
 #define B 64
 #define C 60
@@ -16,6 +18,19 @@ class Onewire{
 #define I 70
 #define J 410
 
+//speed
+/*
+#define A 1
+#define B 7.5
+#define C 7.5
+#define D 2.5
+#define E 1
+#define F 7
+#define G 2.5
+#define H 70
+#define I 8.5
+#define J 40
+*/
 public:
   Onewire(PinName oneBus);
   void writeBit(int bit);
@@ -30,6 +45,7 @@ public:
     uint8_t search(uint8_t* newAddr);
     void select(const uint8_t rom[8]);
     void resetSearch();
+    void targetSetup(unsigned char family_code);
 
     unsigned char ROM_NO[8];
     uint8_t LastDiscrepancy;

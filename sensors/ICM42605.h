@@ -164,7 +164,18 @@
 #define GODR_25Hz    0x0A
 #define GODR_12_5Hz  0x0B
 #define GODR_500Hz   0x0F
-
+/*
+typedef enum IMU_ACC_RANGE {
+  AFS_16G,
+  MLX90393_GAIN_4X,
+  MLX90393_GAIN_3X,
+  MLX90393_GAIN_2_5X,
+  MLX90393_GAIN_2X,
+  MLX90393_GAIN_1_67X,
+  MLX90393_GAIN_1_33X,
+  MLX90393_GAIN_1X
+} mlx90393_gain_t;
+*/
 class ICM42605
 {
 	public:
@@ -179,10 +190,11 @@ class ICM42605
         //void readData(int16_t * destination);
         uint8_t readData();
         uint8_t status();
-        void disableA();
-        void disableG();
-        void enableA();
-        void enableG();
+//        void disableA();
+//        void disableG();
+//        void enableA();
+//        void enableG();
+        int tickerInterval(uint8_t);
         uint8_t setState(bool , bool );
         float _aRes, _gRes;
         float ax,ay,az,gx,gy,gz,t = 0;

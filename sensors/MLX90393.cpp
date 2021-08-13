@@ -1,195 +1,409 @@
+/******************************************************************************
+  This is a library for the MLX90393 magnetometer.
+  Designed specifically to work with the MLX90393 breakout from Adafruit:
+  ----> https://www.adafruit.com/products/4022
+  These sensors use I2C to communicate, 2 pins are required to interface.
+  Adafruit invests time and resources providing this open source code, please
+  support Adafruit and open-source hardware by purchasing products from
+  Adafruit!
+  Written by Kevin Townsend/ktown for Adafruit Industries.
+  MIT license, all text above must be included in any redistribution
+ *****************************************************************************/
 #include "MLX90393.h"
-#include "mbed.h"
- 
- 
-MLX90393::MLX90393(PinName SlaveSelect, SPI* spi) : _SlaveSelect(SlaveSelect)
-{
-    this->spi = spi;
-    _SlaveSelect = 1;
+
+/**
+ * Instantiates a new Adafruit_MLX90393 class instance
+ */
+MLX90393::MLX90393(void) {}
+
+/*!
+ *    @brief  Sets up the hardware and initializes I2C
+ *    @param  i2c_addr
+ *            The I2C address to be used.
+ *    @param  wire
+ *            The Wire object to be used for I2C connections.
+ *    @return True if initialization was successful, otherwise false.
+ */
+
+bool MLX90393::begin_I2C(uint8_t i2c_addr, I2C *i2c) {
+  
+  myI2C = i2c;
+  return _init();
 }
- 
-MLX90393::MLX90393(int I2CAddress, I2C* i2c) : _SlaveSelect(NC)
-{
-    this->i2c = i2c;
-    _I2CAddress = I2CAddress;
+
+
+bool MLX90393::_init(void) {
+
+  if (!exitMode())
+    return false;
+
+  if (!reset())
+    return false;
+
+  /* Set gain and sensor config. */
+  if (!setGain(MLX90393_GAIN_1X)) {
+    return false;
+  }
+
+  /* Set resolution. */
+  if (!setResolution(MLX90393_X, MLX90393_RES_16))
+    return false;
+  if (!setResolution(MLX90393_Y, MLX90393_RES_16))
+    return false;
+  if (!setResolution(MLX90393_Z, MLX90393_RES_16))
+    return false;
+
+  /* Set oversampling. */
+  if (!setOversampling(MLX90393_OSR_3))
+    return false;
+
+  /* Set digital filtering. */
+  if (!setFilter(MLX90393_FILTER_7))
+    return false;
+
+  /* set INT pin to output interrupt */
+  if (!setTrigInt(false)) {
+    return false;
+  }
+
+  return true;
 }
- 
-//*************************************** MAIN FUNCTIONS ***************************************
- 
-void MLX90393::ChangeI2CAddress(int Address)
-{
-    _I2CAddress = Address;
+
+/**
+ * Perform a mode exit
+ * @return True if the operation succeeded, otherwise false.
+ */
+bool MLX90393::exitMode(void) {
+  uint8_t tx[1] = {MLX90393_REG_EX};
+
+  /* Perform the transaction. */
+  return (transceive(tx, sizeof(tx), NULL, 0, 0) == MLX90393_STATUS_OK);
 }
- 
-void MLX90393::EX(char *receiveBuffer, int mode)
-{
-    write_buffer[0] = 0x80;
-    if (mode == 1) {
-        Send_SPI(receiveBuffer, write_buffer, 1, 1);
-    } else {
-        Send_I2C(receiveBuffer, write_buffer, 1, 1);
+
+/**
+ * Perform a soft reset
+ * @return True if the operation succeeded, otherwise false.
+ */
+bool MLX90393::reset(void) {
+  uint8_t tx[1] = {MLX90393_REG_RT};
+
+  /* Perform the transaction. */
+  if (transceive(tx, sizeof(tx), NULL, 0, 5) != MLX90393_STATUS_RESET) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Sets the sensor gain to the specified level.
+ * @param gain  The gain level to set.
+ * @return True if the operation succeeded, otherwise false.
+ */
+bool MLX90393::setGain(mlx90393_gain_t gain) {
+  _gain = gain;
+
+  uint16_t data;
+  readRegister(MLX90393_CONF1, &data);
+
+  // mask off gain bits
+  data &= ~0x0070;
+  // set gain bits
+  data |= gain << MLX90393_GAIN_SHIFT;
+
+  return writeRegister(MLX90393_CONF1, data);
+}
+
+/**
+ * Gets the current sensor gain.
+ *
+ * @return An enum containing the current gain level.
+ */
+mlx90393_gain_t MLX90393::getGain(void) {
+  uint16_t data;
+  readRegister(MLX90393_CONF1, &data);
+
+  // mask off gain bits
+  data &= 0x0070;
+
+  return (mlx90393_gain_t)(data >> 4);
+}
+
+/**
+ * Sets the sensor resolution to the specified level.
+ * @param axis  The axis to set.
+ * @param resolution  The resolution level to set.
+ * @return True if the operation succeeded, otherwise false.
+ */
+bool MLX90393::setResolution(enum mlx90393_axis axis,
+                                      enum mlx90393_resolution resolution) {
+
+  uint16_t data;
+  readRegister(MLX90393_CONF3, &data);
+
+  switch (axis) {
+  case MLX90393_X:
+    _res_x = resolution;
+    data &= ~0x0060;
+    data |= resolution << 5;
+    break;
+  case MLX90393_Y:
+    _res_y = resolution;
+    data &= ~0x0180;
+    data |= resolution << 7;
+    break;
+  case MLX90393_Z:
+    _res_z = resolution;
+    data &= ~0x0600;
+    data |= resolution << 9;
+    break;
+  }
+
+  return writeRegister(MLX90393_CONF3, data);
+}
+
+/**
+ * Gets the current sensor resolution.
+ * @param axis  The axis to get.
+ * @return An enum containing the current resolution.
+ */
+enum mlx90393_resolution
+MLX90393::getResolution(enum mlx90393_axis axis) {
+  switch (axis) {
+  case MLX90393_X:
+    return _res_x;
+  case MLX90393_Y:
+    return _res_y;
+  case MLX90393_Z:
+    return _res_z;
+  }
+}
+
+/**
+ * Sets the digital filter.
+ * @param filter The digital filter setting.
+ * @return True if the operation succeeded, otherwise false.
+ */
+bool MLX90393::setFilter(enum mlx90393_filter filter) {
+  _dig_filt = filter;
+
+  uint16_t data;
+  readRegister(MLX90393_CONF3, &data);
+
+  data &= ~0x1C;
+  data |= filter << 2;
+
+  return writeRegister(MLX90393_CONF3, data);
+}
+
+/**
+ * Gets the current digital filter setting.
+ * @return An enum containing the current digital filter setting.
+ */
+enum mlx90393_filter MLX90393::getFilter(void) { return _dig_filt; }
+
+/**
+ * Sets the oversampling.
+ * @param oversampling The oversampling value to use.
+ * @return True if the operation succeeded, otherwise false.
+ */
+bool MLX90393::setOversampling(
+    enum mlx90393_oversampling oversampling) {
+  _osr = oversampling;
+
+  uint16_t data;
+  readRegister(MLX90393_CONF3, &data);
+
+  data &= ~0x03;
+  data |= oversampling;
+
+  return writeRegister(MLX90393_CONF3, data);
+}
+
+/**
+ * Gets the current oversampling setting.
+ * @return An enum containing the current oversampling setting.
+ */
+enum mlx90393_oversampling MLX90393::getOversampling(void) {
+  return _osr;
+}
+
+/**
+ * Sets the TRIG_INT pin to the specified function.
+ *
+ * @param state  'true/1' sets the pin to INT, 'false/0' to TRIG.
+ *
+ * @return True if the operation succeeded, otherwise false.
+ */
+bool MLX90393::setTrigInt(bool state) {
+  uint16_t data;
+  readRegister(MLX90393_CONF2, &data);
+
+  // mask off trigint bit
+  data &= ~0x8000;
+
+  // set trigint bit if desired
+  if (state) {
+    /* Set the INT, highest bit */
+    data |= 0x8000;
+  }
+
+  return writeRegister(MLX90393_CONF2, data);
+}
+
+/**
+ * Begin a single measurement on all axes
+ *
+ * @return True on command success
+ */
+bool MLX90393::startSingleMeasurement(void) {
+  uint8_t tx[1] = {MLX90393_REG_SM | MLX90393_AXIS_ALL};
+
+  /* Set the device to single measurement mode */
+  uint8_t stat = transceive(tx, sizeof(tx), NULL, 0, 0);
+  if ((stat == MLX90393_STATUS_OK) || (stat == MLX90393_STATUS_SMMODE)) {
+    return true;
+  }
+  return false;
+}
+bool MLX90393::startBurstMode(void){
+    uint8_t tx[1] = {MLX90393_REG_SB | MLX90393_AXIS_ALL};  
+    uint8_t stat = transceive(tx, sizeof(tx), NULL, 0, 0);
+    if ((stat == MLX90393_STATUS_OK) || (stat == MLX90393_STATUS_SMMODE)) {
+        return true;
     }
+    return false;  
 }
- 
-void MLX90393::SB(char *receiveBuffer, char zyxt, int mode)
-{
-    write_buffer[0] = (0x10)|(zyxt);
-    if (mode == 1) {
-        Send_SPI(receiveBuffer, write_buffer, 1, 1);
-    } else {
-        Send_I2C(receiveBuffer, write_buffer, 1, 1);
-    }
+
+/**
+ * Reads data from data register & returns the results.
+ *
+ * @param x     Pointer to where the 'x' value should be stored.
+ * @param y     Pointer to where the 'y' value should be stored.
+ * @param z     Pointer to where the 'z' value should be stored.
+ *
+ * @return True on command success
+ */
+bool MLX90393::readMeasurement(float *x, float *y, float *z) {
+  uint8_t tx[1] = {MLX90393_REG_RM | MLX90393_AXIS_ALL};
+  uint8_t rx[6] = {0};
+
+  /* Read a single data sample. */
+  if (transceive(tx, sizeof(tx), rx, sizeof(rx), 0) != MLX90393_STATUS_OK) {
+    //return false;
+  }
+
+  int16_t xi, yi, zi;
+
+  /* Convert data to uT and float. */
+  xi = (rx[0] << 8) | rx[1];
+  yi = (rx[2] << 8) | rx[3];
+  zi = (rx[4] << 8) | rx[5];
+
+  if (_res_x == MLX90393_RES_18)
+    xi -= 0x8000;
+  if (_res_x == MLX90393_RES_19)
+    xi -= 0x4000;
+  if (_res_y == MLX90393_RES_18)
+    yi -= 0x8000;
+  if (_res_y == MLX90393_RES_19)
+    yi -= 0x4000;
+  if (_res_z == MLX90393_RES_18)
+    zi -= 0x8000;
+  if (_res_z == MLX90393_RES_19)
+    zi -= 0x4000;
+
+  *x = (float)xi * mlx90393_lsb_lookup[0][_gain][_res_x][0];
+  *y = (float)yi * mlx90393_lsb_lookup[0][_gain][_res_y][0];
+  *z = (float)zi * mlx90393_lsb_lookup[0][_gain][_res_z][1];
+
+  return true;
 }
- 
-void MLX90393::SWOC(char *receiveBuffer, char zyxt, int mode)
-{
-    write_buffer[0] = (0x20)|(zyxt);
-    if (mode == 1) {
-        Send_SPI(receiveBuffer, write_buffer, 1, 1);
-    } else {
-        Send_I2C(receiveBuffer, write_buffer, 1, 1);
-    }
+
+/**
+ * Performs a single X/Y/Z conversion and returns the results.
+ *
+ * @param x     Pointer to where the 'x' value should be stored.
+ * @param y     Pointer to where the 'y' value should be stored.
+ * @param z     Pointer to where the 'z' value should be stored.
+ *
+ * @return True if the operation succeeded, otherwise false.
+ */
+bool MLX90393::readData(float *x, float *y, float *z) {
+  if (!startSingleMeasurement())
+    return false;
+  // See MLX90393 Getting Started Guide for fancy formula
+  // tconv = f(OSR, DIG_FILT, OSR2, ZYXT)
+  // For now, using Table 18 from datasheet
+  // Without +10ms delay measurement doesn't always seem to work
+  //delay(mlx90393_tconv[_dig_filt][_osr] + 10);
+  ThisThread::sleep_for(mlx90393_tconv[_dig_filt][_osr] + 10);
+  return readMeasurement(x, y, z);
 }
- 
-void MLX90393::SM(char *receiveBuffer, char zyxt, int mode)
-{
-    write_buffer[0] = (0x30)|(zyxt);
-    if (mode == 1) {
-        Send_SPI(receiveBuffer, write_buffer, 1, 1);
-    } else {
-        Send_I2C(receiveBuffer, write_buffer, 1, 1);
-    }
+
+bool MLX90393::writeRegister(uint8_t reg, uint16_t data) {
+  uint8_t tx[4] = {MLX90393_REG_WR,
+                   static_cast<uint8_t>(data >> 8),   // high byte
+                   static_cast<uint8_t>(data & 0xFF), // low byte
+                   static_cast<uint8_t>(reg << 2)};   // the register itself, shift up by 2 bits!
+
+  /* Perform the transaction. */
+  return (transceive(tx, sizeof(tx), NULL, 0, 0) == MLX90393_STATUS_OK);
 }
- 
-void MLX90393::RM(char *receiveBuffer, char zyxt, int mode)
-{
-    write_buffer[0] = (0x40)|(zyxt);
-    for(int i=0; i<2*count_set_bits(zyxt); i++) {
-        write_buffer[i+2] = 0x00;
-    }
-    if (mode == 1) {
-        Send_SPI(receiveBuffer, write_buffer, 1, 1+2*count_set_bits(zyxt));
-    } else {
-        Send_I2C(receiveBuffer, write_buffer, 1, 1+2*count_set_bits(zyxt));
-    }
+
+bool MLX90393::readRegister(uint8_t reg, uint16_t *data) {
+  uint8_t tx[2] = {MLX90393_REG_RR,
+                   static_cast<uint8_t>(reg << 2)}; // the register itself, shift up by 2 bits!
+
+  uint8_t rx[2];
+
+  /* Perform the transaction. */
+  if (transceive(tx, sizeof(tx), rx, sizeof(rx), 0) != MLX90393_STATUS_OK) {
+    return false;
+  }
+
+  *data = ((uint16_t)rx[0] << 8) | rx[1];
+
+  return true;
 }
- 
-void MLX90393::RR(char *receiveBuffer, int address, int mode)
-{
-    write_buffer[0] = 0x50;
-    write_buffer[1] = address << 2;
-    if (mode == 1) {
-        Send_SPI(receiveBuffer, write_buffer, 2, 3);
-    } else {
-        Send_I2C(receiveBuffer, write_buffer, 2, 3);
+
+/**************************************************************************/
+/*!
+    @brief  Gets the most recent sensor event, Adafruit Unified Sensor format
+    @param  event Pointer to an Adafruit Unified sensor_event_t object that
+   we'll fill in
+    @returns True on successful read
+*/
+/**************************************************************************/
+
+
+/**
+ * Performs a full read/write transaction with the sensor.
+ *
+ * @param txbuf     Pointer the the buffer containing the data to write.
+ * @param txlen     The number of bytes to write.
+ * @param rxbuf     Pointer to an appropriately large buffer where data read
+ *                  back will be written.
+ * @param rxlen     The number of bytes to read back (not including the
+ *                  mandatory status byte that is always returned).
+ *
+ * @return The status byte from the IC.
+ */
+uint8_t MLX90393::transceive(uint8_t *txbuf, uint8_t txlen,
+                                      uint8_t *rxbuf, uint8_t rxlen,
+                                      uint8_t interdelay) {
+  uint8_t status = 0;
+  uint8_t i;
+  uint8_t rxbuf2[rxlen + 2];
+  uint8_t error=0;
+
+    error = myI2C->write(MLX90393_DEFAULT_ADDR, (char *)txbuf, txlen, true);
+    
+    error = myI2C->read(MLX90393_DEFAULT_ADDR,(char *)&rxbuf2[0],rxlen + 1);
+    status = rxbuf2[0];
+    for (i = 0; i < rxlen; i++) {
+      rxbuf[i] = rxbuf2[i + 1];
     }
+
+  /* Mask out bytes available in the status response. */
+  return (status >> 2);
 }
- 
-void MLX90393::WR(char *receiveBuffer, int address, int data, int mode)
-{
-    write_buffer[0] = 0x60;
-    write_buffer[1] = (data&0xFF00)>>8;
-    write_buffer[2] = data&0x00FF;
-    write_buffer[3] = address << 2;
-    if (mode == 1) {
-        Send_SPI(receiveBuffer, write_buffer, 4, 1);
-    } else {
-        Send_I2C(receiveBuffer, write_buffer, 4, 1);
-    }
-}
- 
-void MLX90393::RT(char *receiveBuffer, int mode)
-{
-    write_buffer[0] = 0xF0;
-    if (mode == 1) {
-        Send_SPI(receiveBuffer, write_buffer, 1, 1);
-    } else {
-        Send_I2C(receiveBuffer, write_buffer, 1, 1);
-    }
-}
- 
-void MLX90393::NOP(char *receiveBuffer, int mode)
-{
-    write_buffer[0] = 0x00;
-    if (mode == 1) {
-        Send_SPI(receiveBuffer, write_buffer, 1, 1);
-    } else {
-        Send_I2C(receiveBuffer, write_buffer, 1, 1);
-    }
-}
- 
-void MLX90393::HR(char *receiveBuffer, int mode)
-{
-    write_buffer[0] = 0xD0;
-    if (mode == 1) {
-        Send_SPI(receiveBuffer, write_buffer, 1, 1);
-    } else {
-        Send_I2C(receiveBuffer, write_buffer, 1, 1);
-    }
-}
- 
-void MLX90393::HS(char *receiveBuffer, int mode)
-{
-    write_buffer[0] = 0xE0;
-    if (mode == 1) {
-        Send_SPI(receiveBuffer, write_buffer, 1, 1);
-    } else {
-        Send_I2C(receiveBuffer, write_buffer, 1, 1);
-    }
-}
- 
-void MLX90393::DT(char *receiveBuffer, int data, int mode)
-{
-    write_buffer[0] = 0x70;
-    write_buffer[1] = (data&0xFF00)>>8;
-    write_buffer[2] = data&0x00FF;
-    if (mode == 1) {
-        Send_SPI(receiveBuffer, write_buffer, 3, 1);
-    } else {
-    }
-}
- 
-//************************************* COMMUNICATION LEVEL ************************************
- 
-void MLX90393::Send_SPI(char *receiveBuffer, char *sendBuffer, int sendMessageLength, int receiveMessageLength)
-{
-    char* tempSendBuffer = sendBuffer;
-    char* tempReceiveBuffer = receiveBuffer;
-    _SlaveSelect = 0;
-    for(int i=0; i<sendMessageLength; i++) {
-        spi->write(*tempSendBuffer);
-        tempSendBuffer++;
-    }
-    for(int i=0; i<receiveMessageLength; i++) {
-        *receiveBuffer = spi->write(0x00);
-        receiveBuffer++;
-    }
-    _SlaveSelect = 1;
-    receiveBuffer = tempReceiveBuffer;
-}
- 
-void MLX90393::Send_I2C(char *receiveBuffer, char *sendBuffer, int sendMessageLength, int receiveMessageLength)
-{
-    char* tempSendBuffer = sendBuffer;
-    char* tempReceiveBuffer = receiveBuffer;
-    i2c->write(_I2CAddress, tempSendBuffer, sendMessageLength, true);
-    i2c->read(_I2CAddress, receiveBuffer, receiveMessageLength);
-    receiveBuffer = tempReceiveBuffer;
-}
- 
-//*************************************** EXTRA FUNCTIONS **************************************
- 
-int MLX90393::count_set_bits(int N)
-{
-    int result = 0;
-    while(N) {
-        result++;
-        N &=N-1;
-    }
-    return result;
-}
- 
- 
- 
- 
-            

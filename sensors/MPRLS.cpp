@@ -8,6 +8,7 @@ MPRLS::MPRLS(uint16_t PSI_min, uint16_t PSI_max,
   _OUTPUT_min = (uint32_t)((float)COUNTS_224 * (OUTPUT_min / 100.0) + 0.5);
   _OUTPUT_max = (uint32_t)((float)COUNTS_224 * (OUTPUT_max / 100.0) + 0.5);
   _K = K;
+  enable = false;
 }
 
 /**************************************************************************/

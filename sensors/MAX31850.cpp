@@ -9,6 +9,8 @@ MAX31850::MAX31850(Onewire* myOnewirePointer){
 void MAX31850::init(){
     myOnewire->resetSearch();
     myOnewire->reset();
+    myOnewire->targetSetup(0x3b);
+
     myOnewire->search(MAX31850_ROM);
     ThisThread::sleep_for(100ms);
 }

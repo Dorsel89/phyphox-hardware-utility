@@ -5,6 +5,7 @@ Onewire::Onewire(PinName oneBus){
     pinName = oneBus;
 }
 void Onewire::writeBit(int bit) {
+    __disable_irq();
     bit = bit & 0x01;
     if (bit) {
         // Write '1' bit
@@ -19,17 +20,19 @@ void Onewire::writeBit(int bit) {
         pinUp();
         NRFX_DELAY_US(D);   //10
     }
+    __enable_irq();
 }
 
 int Onewire::readBit() {
     char result;
-
+    __disable_irq();
     pinDown();
-    NRFX_DELAY_US(3);   
+    NRFX_DELAY_US(A);   //3
     pinUp();
-    NRFX_DELAY_US(12);
+    NRFX_DELAY_US(E);//12
     result = BusRead() & 0x01;
-    NRFX_DELAY_US(55);
+    NRFX_DELAY_US(F);//55
+    __enable_irq();
     return result;
 
 }
@@ -48,12 +51,13 @@ void Onewire::pinUp() {
 int Onewire::reset(){
 
         uint8_t result;
+        NRFX_DELAY_US(G);
         pinDown();
-        NRFX_DELAY_US(480);
+        NRFX_DELAY_US(H);//480
         pinUp();
-        NRFX_DELAY_US(70);
+        NRFX_DELAY_US(I);//70
         result = BusRead();
-        NRFX_DELAY_US(410);
+        NRFX_DELAY_US(J);//410
         return !result;
 }
 int Onewire::readByte() {
@@ -221,4 +225,17 @@ void Onewire::resetSearch(){
     LastDiscrepancy = 0;
     LastDeviceFlag = 0;
     LastFamilyDiscrepancy = 0;
+}
+
+void Onewire::targetSetup(unsigned char family_code)
+{
+   int i;
+
+   // set the search state to find SearchFamily type devices
+   ROM_NO[0] = family_code;
+   for (i = 1; i < 8; i++)
+      ROM_NO[i] = 0;
+   LastDiscrepancy = 64;
+   LastFamilyDiscrepancy = 0;
+   LastDeviceFlag = 0;
 }

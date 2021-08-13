@@ -7,6 +7,7 @@ DS18B20::DS18B20(Onewire* myOnewirePointer){
 void DS18B20::init(){
     myOnewire->resetSearch();
     myOnewire->reset();
+    myOnewire->targetSetup(0x28);
     myOnewire->search(DS18B20_ROM);
     ThisThread::sleep_for(100ms);
 }
@@ -27,5 +28,8 @@ float DS18B20::getTemp(){
     } 
     uint16_t buffer[1] = {0};
     memcpy(&buffer[0], &dataBuffer[0], 2);
+    if(buffer[0]==65535){
+        return NAN;
+    }
     return 0.0625 * buffer[0];
 }

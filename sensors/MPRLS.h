@@ -29,9 +29,8 @@ public:
   void setI2C(uint8_t i2c_addr = MPRLS_DEFAULT_ADDR, I2C* myI2C = nullptr);
 
   float readPressure(void);
-
+    bool enable;
   uint8_t lastStatus; /*!< status byte after last operation */
-
 private:
   uint32_t readData(void);
 
