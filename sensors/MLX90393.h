@@ -188,7 +188,9 @@ public:
 
   bool setTrigInt(bool state);
   bool readData(float *x, float *y, float *z);
-
+  int numberPerPackage = 1;
+  int currentPackage = 0;
+  float measuredData[4*7];
 //  bool getEvent(sensors_event_t *event);
 //  void getSensor(sensor_t *sensor);
 
