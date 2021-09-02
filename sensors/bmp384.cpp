@@ -54,7 +54,11 @@ uint8_t BMP384::disable(){
     rslt = bmp3_set_op_mode(&bmp);
     return rslt;
 }
-
+uint8_t BMP384::enable(){
+    bmp.settings.op_mode = BMP3_MODE_NORMAL;
+    rslt = bmp3_set_op_mode(&bmp);
+    return rslt;
+}
 void BMP384::delay_us(uint32_t period_us, void *intf_ptr){
     NRFX_DELAY_US(period_us);
 }

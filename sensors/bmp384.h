@@ -14,10 +14,10 @@ class BMP384{
         float temperature;
         void getData();
         uint8_t disable();
+        uint8_t enable();
         static I2C* myi2c;
     private:
         
-        void test(void *a);
         static void delay_us(unsigned int period_us, void *intf_ptr);
         static int8_t i2c_reg_write(uint8_t reg_addr, const uint8_t *read_data, uint32_t length, void *intf_ptr);
         static int8_t i2c_reg_read(uint8_t reg_addr, uint8_t *read_data, uint32_t length, void *intf_ptr);
