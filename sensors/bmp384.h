@@ -1,5 +1,6 @@
 #ifndef BMP384_H
 #define BMP384_H
+#include <cstdint>
 #define BMP3_SENSOR_OK                                      UINT8_C(0)
 #include "bmp3.h"
 #include "mbed.h"
@@ -8,8 +9,8 @@
 class BMP384{
     public:
 		BMP384(I2C *myI2C_Pointer);
-        uint8_t init();
-        
+        uint8_t init(uint8_t oversampling, uint8_t filter, uint8_t rate);
+        uint8_t changeSettings(uint8_t oversampling, uint8_t filter, uint8_t rate);
         float pressure;
         float temperature;
         void getData();

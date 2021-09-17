@@ -1,11 +1,41 @@
 #include "bmp384.h"
+#include <cstdint>
 
 I2C* BMP384::myi2c;
 BMP384::BMP384(I2C *myI2C_Pointer){
     myi2c = myI2C_Pointer;
 }
+uint8_t BMP384::changeSettings(uint8_t oversampling, uint8_t filter, uint8_t rate){
+    uint16_t settings_sel;
+    bmp.settings.press_en = BMP3_ENABLE;
+    bmp.settings.temp_en = BMP3_ENABLE;
+    //bmp.settings.odr_filter.press_os = oversampling; //BMP3_OVERSAMPLING_8X;
+    bmp.settings.odr_filter.press_os = oversampling;
+    bmp.settings.odr_filter.temp_os = BMP3_NO_OVERSAMPLING;
+    bmp.settings.int_settings.drdy_en =BMP3_ENABLE;
+    bmp.settings.odr_filter.iir_filter = filter;
+    //bmp.settings.odr_filter.iir_filter = filter;//BMP3_IIR_FILTER_COEFF_3;
+    bmp.settings.odr_filter.odr =rate;//BMP3_ODR_25_HZ;    
+    //bmp.settings.odr_filter.odr = rate;//BMP3_ODR_25_HZ;//BMP3_ODR_25_HZ;    
+    settings_sel = BMP3_SEL_PRESS_OS | BMP3_SEL_TEMP_OS | BMP3_SEL_ODR | BMP3_SEL_IIR_FILTER;
+    rslt = bmp3_set_sensor_settings(settings_sel, &bmp);           
+     if (rslt == BMP3_SENSOR_OK){
+        bmp.settings.op_mode = BMP3_MODE_NORMAL; 
+        rslt = bmp3_set_op_mode(&bmp);
+        if (rslt == BMP3_SENSOR_OK)
+        {
+            //bmp.delay_us(40000, bmp.intf_ptr);
 
-uint8_t BMP384::init(){
+            /* Sensor component selection */
+            sensor_comp = BMP3_PRESS | BMP3_TEMP;
+
+            /* Temperature and Pressure data are read and stored in the bmp3_data instance */
+           
+        }
+    }
+    return 0;
+}
+uint8_t BMP384::init(uint8_t oversampling, uint8_t filter, uint8_t rate){
 
     bmp.delay_us = delay_us;
     bmp.intf_ptr = myi2c;
@@ -20,12 +50,12 @@ uint8_t BMP384::init(){
     uint16_t settings_sel;
     bmp.settings.press_en = BMP3_ENABLE;
     bmp.settings.temp_en = BMP3_ENABLE;
-    bmp.settings.odr_filter.press_os = BMP3_OVERSAMPLING_8X;//BMP3_NO_OVERSAMPLING;
+    bmp.settings.odr_filter.press_os = oversampling; //BMP3_OVERSAMPLING_8X;
     bmp.settings.odr_filter.temp_os = BMP3_NO_OVERSAMPLING;
     bmp.settings.int_settings.drdy_en =BMP3_ENABLE;
-    bmp.settings.odr_filter.iir_filter = BMP3_IIR_FILTER_COEFF_3;
+    bmp.settings.odr_filter.iir_filter = filter;//BMP3_IIR_FILTER_COEFF_3;
     bmp.settings.int_settings.level = BMP3_INT_PIN_ACTIVE_HIGH;
-    bmp.settings.odr_filter.odr = BMP3_ODR_25_HZ;//BMP3_ODR_25_HZ;    
+    bmp.settings.odr_filter.odr = rate;//BMP3_ODR_25_HZ;//BMP3_ODR_25_HZ;    
     settings_sel = BMP3_SEL_PRESS_EN | BMP3_SEL_TEMP_EN | BMP3_SEL_PRESS_OS | BMP3_SEL_TEMP_OS | BMP3_SEL_ODR |BMP3_SEL_DRDY_EN| BMP3_SEL_LEVEL |BMP3_SEL_IIR_FILTER;
     rslt = bmp3_set_sensor_settings(settings_sel, &bmp);           
      if (rslt == BMP3_SENSOR_OK){
