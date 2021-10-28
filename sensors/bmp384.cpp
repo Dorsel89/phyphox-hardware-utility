@@ -46,6 +46,9 @@ uint8_t BMP384::init(uint8_t oversampling, uint8_t filter, uint8_t rate){
     bmp3_data myData;    
     sensor_comp = BMP3_PRESS | BMP3_TEMP;
     rslt = bmp3_init(&bmp);
+    if(rslt!=0){
+        return 99;
+    }
     
     uint16_t settings_sel;
     bmp.settings.press_en = BMP3_ENABLE;
