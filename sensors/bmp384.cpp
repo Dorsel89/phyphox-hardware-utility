@@ -9,14 +9,25 @@ uint8_t BMP384::changeSettings(uint8_t oversampling, uint8_t filter, uint8_t rat
     uint16_t settings_sel;
     bmp.settings.press_en = BMP3_ENABLE;
     bmp.settings.temp_en = BMP3_ENABLE;
-    //bmp.settings.odr_filter.press_os = oversampling; //BMP3_OVERSAMPLING_8X;
     bmp.settings.odr_filter.press_os = oversampling;
+    if(oversampling == BMP3_OVERSAMPLING_16X || oversampling == BMP3_OVERSAMPLING_32X){
+        bmp.settings.odr_filter.temp_os = BMP3_OVERSAMPLING_2X;
+    }else {
+        bmp.settings.odr_filter.temp_os = BMP3_NO_OVERSAMPLING;
+    }
+    
     bmp.settings.odr_filter.temp_os = BMP3_NO_OVERSAMPLING;
     bmp.settings.int_settings.drdy_en =BMP3_ENABLE;
     bmp.settings.odr_filter.iir_filter = filter;
-    //bmp.settings.odr_filter.iir_filter = filter;//BMP3_IIR_FILTER_COEFF_3;
     bmp.settings.odr_filter.odr =rate;//BMP3_ODR_25_HZ;    
-    //bmp.settings.odr_filter.odr = rate;//BMP3_ODR_25_HZ;//BMP3_ODR_25_HZ;    
+
+/*
+    bmp.settings.odr_filter.odr = BMP3_ODR_25_HZ;//BMP3_ODR_25_HZ;    
+    bmp.settings.odr_filter.iir_filter = BMP3_IIR_FILTER_COEFF_3;
+    bmp.settings.odr_filter.press_os = BMP3_OVERSAMPLING_16X;
+    bmp.settings.odr_filter.temp_os = BMP3_OVERSAMPLING_2X;
+    */
+
     settings_sel = BMP3_SEL_PRESS_OS | BMP3_SEL_TEMP_OS | BMP3_SEL_ODR | BMP3_SEL_IIR_FILTER;
     rslt = bmp3_set_sensor_settings(settings_sel, &bmp);           
      if (rslt == BMP3_SENSOR_OK){
