@@ -199,6 +199,12 @@ class ICM42605
         float _aRes, _gRes;
         float ax,ay,az,gx,gy,gz,t = 0;
         float axOld,ayOld,azOld,gxOld,gyOld,gzOld,tOld = 0;
+
+        float measuredDataAcc[4*10];
+        float measuredDataGyr[4*10];
+        volatile uint8_t numberPerPackage = 1;
+        int currentPackage = 0;
+
 	private:
         I2Chelper* myi2c;
         
