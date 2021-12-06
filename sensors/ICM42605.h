@@ -187,6 +187,8 @@ class ICM42605
         void offsetBias(float * dest1, float * dest2);
         void reset();
         void selfTest();
+        void changeSettings(uint8_t ODR, uint8_t Gscale, uint8_t Ascale);
+
         //void readData(int16_t * destination);
         uint8_t readData();
         uint8_t status();

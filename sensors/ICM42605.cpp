@@ -135,8 +135,15 @@ void ICM42605::init(uint8_t Ascale, uint8_t Gscale, uint8_t AODR, uint8_t GODR)
 
     ThisThread::sleep_for(100ms);
     temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_INT_CONFIG);
-    temp = temp & ~(0x3F) ; // set all to 0 
-    myi2c->writeByte(ICM42605_ADDRESS, ICM42605_INT_CONFIG, temp | 0x3F); // set both interrupts active high, push-pull, latched
+    //temp = temp & ~(0x3F) ; // set all to 0 
+    bool activeHigh = true;
+    temp ^= (-activeHigh ^ temp) & (1UL << 0);  // bit 0
+    bool pushPull = true;
+    temp ^= (-pushPull ^ temp) & (1UL << 1);
+    bool latchedMode = false;
+    temp ^= (-latchedMode ^ temp) & (1UL << 2);
+    myi2c->writeByte(ICM42605_ADDRESS, ICM42605_INT_CONFIG, temp);
+    //myi2c->writeByte(ICM42605_ADDRESS, ICM42605_INT_CONFIG, temp | 0x3F); // set both interrupts active high, push-pull, latched
     //myi2c->writeByte(ICM42605_ADDRESS, ICM42605_INT_CONFIG, temp | 0x1B ); // set both interrupts active high, push-pull, pulsed
 
     temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_INT_CONFIG1);
@@ -146,12 +153,34 @@ void ICM42605::init(uint8_t Ascale, uint8_t Gscale, uint8_t AODR, uint8_t GODR)
     //myi2c->writeByte(ICM42605_ADDRESS, ICM42605_INT_CONFIG1, temp | 0x60 ); // interrupt puls 8us, do not deassert
 
     temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_INT_CONFIG0);
-    myi2c->writeByte(ICM42605_ADDRESS, ICM42605_INT_CONFIG0, temp | 0x20 ); // todo
-    
+//    myi2c->writeByte(ICM42605_ADDRESS, ICM42605_INT_CONFIG0, temp | 0x20 );
+    bool bit0 = 0;
+    bool bit1 = 0;
 
+    bool bit2 = 0;
+    bool bit3 = 0;
+
+    bool bit4 = 0;
+    bool bit5 = 0;
+ 
+    temp ^= (-bit0 ^ temp) & (1UL << 0);
+    temp ^= (-bit1 ^ temp) & (1UL << 1);  
+    temp ^= (-bit2 ^ temp) & (1UL << 2);  
+    temp ^= (-bit3 ^ temp) & (1UL << 3);    
+    temp ^= (-bit4 ^ temp) & (1UL << 4);  
+    temp ^= (-bit5 ^ temp) & (1UL << 5);       
+    myi2c->writeByte(ICM42605_ADDRESS, ICM42605_INT_CONFIG0, temp);
     temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_INT_SOURCE0);
-    temp = temp & ~(0x7F);
-    myi2c->writeByte(ICM42605_ADDRESS, ICM42605_INT_SOURCE0, temp | 0x08 ); // route data ready interrupt to INT1
+    //temp = temp & ~(0x7F);
+    temp ^= (-0 ^ temp) & (1UL << 0);
+    temp ^= (-0 ^ temp) & (1UL << 1);  
+    temp ^= (-0 ^ temp) & (1UL << 2);  
+    temp ^= (-1 ^ temp) & (1UL << 3);    
+    temp ^= (-0 ^ temp) & (1UL << 4);  
+    temp ^= (-0 ^ temp) & (1UL << 5); 
+    temp ^= (-0 ^ temp) & (1UL << 6);
+    //myi2c->writeByte(ICM42605_ADDRESS, ICM42605_INT_SOURCE0, temp | 0x08 ); // route data ready interrupt to INT1
+    myi2c->writeByte(ICM42605_ADDRESS, ICM42605_INT_SOURCE0, temp ); // route data ready interrupt to INT1
 
     temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_INT_SOURCE3);
     myi2c->writeByte(ICM42605_ADDRESS, ICM42605_INT_SOURCE3, temp | 0x01 ); // route AGC interrupt interrupt to INT2
@@ -172,6 +201,18 @@ void ICM42605::init(uint8_t Ascale, uint8_t Gscale, uint8_t AODR, uint8_t GODR)
     getAres(Ascale);
     getGres(Gscale);
 }
+void ICM42605::changeSettings(uint8_t ODR, uint8_t Gscale, uint8_t Ascale){
+    
+    uint8_t temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_ACCEL_CONFIG0);
+    temp = temp & ~(0xEF) ; // set all to 0 
+    myi2c->writeByte(ICM42605_ADDRESS, ICM42605_ACCEL_CONFIG0, temp | ODR | Ascale << 5); // set accel full scale and data rate
+
+    temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_GYRO_CONFIG0);
+    temp = temp & ~(0xEF) ; // set all to 0 
+    myi2c->writeByte(ICM42605_ADDRESS, ICM42605_GYRO_CONFIG0, temp | ODR | Gscale << 5); // gyro full scale and data rate    
+    
+}
+
 /*
 void ICM42605::disableA(){
     uint8_t temp = myi2c->readByte(ICM42605_ADDRESS, ICM42605_PWR_MGMT0); // make sure not to disturb reserved bit values
